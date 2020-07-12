@@ -1,0 +1,42 @@
+from pyspark import SparkContext, SparkConf
+from pyspark.sql import SparkSession
+
+
+def generate_hive_schema(table_name='table_v1_test_json_serde', location="/table/v1",
+                         partition_format='(year String,month String,day String, hour String)',
+                         read_file_path="hdfs://namenode/table/month=7/day=10/hour=11/table.c000.json",
+                         save_file=True, save_prefix_path='/tmp'):
+    spark_conf = SparkConf().setMaster('local[1]')
+    spark_session = SparkSession(SparkContext(conf=spark_conf))
+    df = spark_session.read.json(read_file_path)
+    df.printSchema()
+    buf = [f'CREATE EXTERNAL TABLE IF NOT EXISTS {table_name} ( \n']
+    sizeof = len(df.dtypes)
+    count = 1
+    for field in df.dtypes:
+        total = f'`{str(field[0])}` {str(field[1].replace("struct<", "struct<`").replace(",", ",`").replace(":", "`:"))}'
+        if count != sizeof:
+            total += str(',')
+        buf.append(f'\t{total}\n')
+        count = count + 1
+    buf.append(' ) \n')
+    buf.append(f' PARTITIONED BY {partition_format} \n')
+    # TODO support another file format
+    buf.append(' STORED AS JSONFILE \n')
+    buf.append(f"LOCATION '{location}';\n\n")
+    buf.append(f"MSCK REPAIR TABLE {table_name};\n")
+    buf.append(f"SELECT * FROM {table_name} limit 1;\n")
+    hive_table_definition = ''.join(buf)
+    if save_file:
+        if save_prefix_path:
+            save_full_path = f'{save_prefix_path}/{table_name}.ddl'
+        else:
+            save_full_path = f'{table_name}.ddl'
+        print(f'### save file to - {save_full_path}')
+        with open(save_full_path, 'w') as writer:
+            writer.writelines(hive_table_definition)
+    print(hive_table_definition)
+
+
+if __name__ == "__main__":
+    generate_hive_schema()
