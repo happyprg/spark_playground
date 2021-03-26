@@ -166,7 +166,7 @@ python3-openid==3.1.0
 pytz==2020.1
 pytzdata==2019.3
 pywinrm==0.4.1
-PyYAML==5.3.1
+PyYAML==5.4
 qds-sdk==1.15.2
 requests==2.23.0
 requests-kerberos==0.12.0
